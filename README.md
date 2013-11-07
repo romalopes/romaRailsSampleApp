@@ -63,7 +63,7 @@ by [Michael Hartl](http://michaelhartl.com/).
 			end
 
 			OR
-			 subject { page }   # use the "expect(page).to "
+			  subject { page }   # use the "expect(page).to "
 
 			  describe "Home page" do
 			    before { visit root_path }  # avoit the visit in each call
@@ -74,7 +74,15 @@ by [Michael Hartl](http://michaelhartl.com/).
 			    it { should_not have_title('| Home') }
 			  end
 
-			  full_title...  is a method created in spec/suport/utilities.rb
+			  describe "Contact page" do
+			    before { visit contact_path }
+
+			    it { should have_content('Contact') }
+			    it { should have_selector('h1', text: 'Contact') }
+			    it { should have_title(full_title('Contact')) }
+			  end
+
+			- full_title...  is a method created in spec/suport/utilities.rb
 			  Identical to the methods created in helpers/application_helper.rb, which is used but the application
 
 				def full_title(page_title)
@@ -86,6 +94,37 @@ by [Michael Hartl](http://michaelhartl.com/).
 				  end
 				end
 
+				Later change utilities.br to:
+				include ApplicationHelper
+
+				and create a files spec/helper/application_helper_spec.rb
+					require 'spec_helper'
+
+					describe ApplicationHelper do
+
+					  describe "full_title" do
+					    it "should include the page title" do
+					      expect(full_title("foo")).to match(/foo/)
+					    end
+
+					    it "should include the base title" do
+					      expect(full_title("foo")).to match(/^Ruby on Rails Tutorial Sample App/)
+					    end
+
+					    it "should not include a bar for the home page" do
+					      expect(full_title("")).not_to match(/\|/)
+					    end
+					  end
+					end
+
+
+
+			Reference for test:
+			    it { should have_content('Contact') }
+			    it { should have_selector('h1', text: 'Contact') }
+			    it { should have_title(full_title('Contact')) }
+			    it { should_not have_title(full_title('Contact')) }
+ 				click_link "About" expect(page).to have_title(full_title('About Us'))
 			change config/routes.rb
 			From
 				get "static_pages/contact"
@@ -241,9 +280,7 @@ vendor/assets: assets from third-party vendors
 			create the file spec/request/user_pages_spec.rb
 
 			require 'spec_helper'
-
 			describe "User pages" do
-
 			  subject { page }
 
 			  describe "signup page" do
@@ -262,7 +299,7 @@ vendor/assets: assets from third-party vendors
 		Change home to have reference to signup page
 		 <%= link_to "Sign up now!", signup_path, class: "btn btn-large btn-primary" %>
     Commit and push this verson
-	    $ git add .
+	    git add .
 		$ git commit -m "Finish layout and routes"
 		$ git checkout master
 		$ git merge filling-in-layout
@@ -270,3 +307,34 @@ vendor/assets: assets from third-party vendors
 		$ git push heroku
 		$ heroku open
 		$ heroku logs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+http://railsapps.github.io/installing-rails.html
+http://www.psychocats.net/ubuntu/virtualbox
+
+
