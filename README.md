@@ -387,10 +387,17 @@ Modeling Users
 		Validate 
 			Verify if an attribute is present
 			in app/models/user.rb
-				validates :name, presence: true, length: { maximum: 50 }
-	VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
-				validates :email, presence: true, format: { with: VALID_EMAIL_REGEX },
-			uniqueness: { case_sensitive: false }
+				class User < ActiveRecord::Base
+					before_save { self.email = email.downcase }
+					validates :name, presence: true, length: { maximum: 50 }
+					VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
+					validates :email, presence:   true,
+					                format:     { with: VALID_EMAIL_REGEX },
+					                uniqueness: { case_sensitive: false }
+					validates :password, length: { minimum: 6 }
+
+					has_secure_password
+				end
 
 
 			But to guarantee uniqueness Create an index for users.email.
@@ -413,6 +420,7 @@ Modeling Users
  				- $ bundle exec rake test:prepare 
  				- $ bundle exec rspec spec/models/user_spec.rb
  	Add Password and security
+ 		https://github.com/rails/rails/blob/master/activemodel/lib/active_model/secure_password.rb
  		Rails method called has_secure_password  (Rails 3.1)
  		- Include in gemFile
  			gem 'bcrypt-ruby', '3.1.2'
@@ -451,6 +459,43 @@ Modeling Users
 			  .
 			  has_secure_password
 			end
+	User Authentication
+		Method to retrieve the User based on email and password.
+		Everythin depends on "has_secure_password"
+		Two steps:
+			1 - Find User based on email
+				user = User.find_by(email: email)
+			2 - Authenticate with a given password
+				current_user = user.authenticate(password)
+				- Or return the user object OR false
+		Test
+			describe "return value of authenticate method" do
+				#Before the test sava the user created previously
+				before { @user.save }
+				#user found_user is retrieved from DB
+				let(:found_user) { User.find_by(email: @user.email) }
+
+				describe "with valid password" do
+					# It will authenticate found_user == @user.
+					it { should eq found_user.authenticate(@user.password) }
+				end
+
+				describe "with invalid password" do
+					#It may return false
+					let(:user_for_invalid_password) { found_user.authenticate("invalid") }
+					it { should_not eq user_for_invalid_password }
+					#It will NOT authenticate
+					specify { expect(user_for_invalid_password).to be_false }
+					#specify is synonym of it. Just used to avoid repetition.
+				end
+			end		
+			- "let" is similar to set a variable.
+	GIT
+		$ git add .
+		$ git commit -m "Make a basic User model (including secure passwords)
+		"
+		$ git checkout master
+$ git merge modeling-users
 
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox
