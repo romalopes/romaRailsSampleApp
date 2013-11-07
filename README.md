@@ -262,7 +262,7 @@ vendor/assets: assets from third-party vendors
 		Change home to have reference to signup page
 		 <%= link_to "Sign up now!", signup_path, class: "btn btn-large btn-primary" %>
     Commit and push this verson
-	    git add .
+	    $ git add .
 		$ git commit -m "Finish layout and routes"
 		$ git checkout master
 		$ git merge filling-in-layout
