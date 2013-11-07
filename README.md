@@ -223,7 +223,9 @@ Filling in the Layout
 		- run http://localhost:3000/static_pages/home
 	Bootstrap
 		To add bootstrap to project
-			include in gemFile	gem 'bootstrap-sass', '2.3.2.0' and
+			include in gemFile	
+				---> gem 'bootstrap-sass', '2.3.2.0' 
+				and
 				$ bundle install
 			In  config/application.rb
 				include -> config.assets.precompile += %w(*.png *.jpg *.jpeg *.gif)
@@ -309,30 +311,146 @@ vendor/assets: assets from third-party vendors
 		$ heroku logs
 
 
+Modeling Users
+	Git
+		$ git checkout master
+		$ git checkout -b modeling-users
+	Generate the controler class and file for User
+		$ rails generate controller Users new --no-test-framework
+	Generate the model class and file for User
+		$ rails generate model User name:string email:string
+		- For Model User is singular, different from Controller where Users is plural.
+
+		It create a file for Migration in db/migration/xxxTIME_STAMPxx_create_user.rb
+			This file is used to create tables for database.
+			class CreateUsers < ActiveRecord::Migration
+			  def change
+			    create_table :users do |t|
+			      t.string :name
+			      t.string :email
+
+			      t.timestamps
+			    end
+			  end
+			end
+
+		- Run the migration to DB
+			$ bundle exec rake db:migrate
+				Creates the file: db/development.sqlite3
+			A DB tet is create in db/test.sqlite3, but if there is a problem, create a new DB test.
+				$ bundle exec rake test:prepare 
+			
+
+		- To reverse the migration if necessary
+			$ bundle exec rake db:rollback
+		- At this point class User in app/models/user.rb don't have attributes yet.
+			class User < ActiveRecord::Base
+			end
+	Working with model to use in DB
+		$ rails console --sandbox
+		user = User.new(name: "Michael Hartl", email: "mhartl@example.com")user.save
+		user
+		user.name 
+		User.find(1)
+		User.find_by_email("mhartl@example.com")
+		User.all
+		user.name = 'Anderson Lopes' ----> user.save  #Update one attribute
+		user.reload.email # Reloads the value from DB.
+		user.created_at 	or 		user.updated_at
+		user.update_attributes(name: "The Dude", email: "dude@abides.org")
+
+		foo = User.create(name: "Foo", email: "foo@bar.com")
+		foo.destroy
+		foo  # The object was removed from DB, but still remains in DB.
+	Validation
+		Create a testS in spec/models/user.rb
+		Test if the attributes exist
+			describe User do
+				before { @user = User.new(name: "Example User", email: "user@example.com") }
+				subject { @user }   # for the variable user
+				it { should respond_to(:name) }  # verify if these attributes exists
+				it { should respond_to(:email) }
+
+				OR
+				it "should respond to 'name'" do
+	  				expect(@user).to respond_to(:name)
+	  			end
+
+				it { should be_valid }  <---- Verify if it has all attributes
+
+				describe "when name is not present" do
+				    before { @user.name = "" }
+				    it { should_not be_valid }
+				end
+
+			end
+		Validate 
+			Verify if an attribute is present
+			in app/models/user.rb
+				validates :name, presence: true, length: { maximum: 50 }
+	VALID_EMAIL_REGEX = /\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i
+				validates :email, presence: true, format: { with: VALID_EMAIL_REGEX },
+			uniqueness: { case_sensitive: false }
 
 
+			But to guarantee uniqueness Create an index for users.email.
+				$ rails generate migration add_index_to_users_email			
+				
+				- And change db/migrate/xxxx_add_index...
+				class AddIndexToUsersEmail < ActiveRecord::Migration
+				  def change
+				    add_index :users, :email, unique: true
+				  end
+				end
+				$ bundle exec rake db:migrate
+				- And finally in app/model/user.rb
+					class User < ActiveRecord::Base
+  						before_save { self.email = email.downcase }
+					  .
+					  .
+					  .
+					end
+ 				- $ bundle exec rake test:prepare 
+ 				- $ bundle exec rspec spec/models/user_spec.rb
+ 	Add Password and security
+ 		Rails method called has_secure_password  (Rails 3.1)
+ 		- Include in gemFile
+ 			gem 'bcrypt-ruby', '3.1.2'
+		$ bundle install
+		Include test
+			  it { should respond_to(:password_digest) }
+		- Test will fail
+		- Generate migration
+			$ rails generate migration add_password_digest_to_users password_digest:string
+			- add_password_digest_to_users can be any name, but the sufix "_to_users" refers to users table.
+			- name and type of attribute I created(password_digest:string)
+		- in db/migrate/[ts]_add_password_digest_to_users.rb it is created
+			class AddPasswordDigestToUsers < ActiveRecord::Migration
+			  def change
+			    add_column :users, :password_digest, :string
+			  end
+			end
+		- Migrate and test
+			$ bundle exec rake db:migrate
+			$ bundle exec rake test:prepare
+			$ bundle exec rspec spec/
 
+	Testing password
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+		In user_spec.rb
+			before do
+		    @user = User.new(name: "Example User", email: "user@example.com",
+		                     password: "foobar", password_confirmation: "foobar")
+			end		
+			...
+	  		it { should respond_to(:password) }
+  			it { should respond_to(:password_confirmation) }
+  			-And other tests like blank value.
+  		In user.rb "has_secure_password" is enough to work with password.
+	  		class User < ActiveRecord::Base
+			  .
+			  has_secure_password
+			end
 
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox

@@ -18,7 +18,7 @@ describe "Static pages" do
     it { should_not have_title('| Home') }
   end
 
-   describe "Help page Avoiding duplication" do
+  describe "Help page Avoiding duplication" do
     before { visit help_path }
     let(:heading)    { 'Help' }
     let(:page_title) { 'Help' }
