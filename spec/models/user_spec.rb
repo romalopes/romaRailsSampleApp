@@ -25,7 +25,7 @@ describe User do
 	# it { should be_valid }
 	# it { should respond_to(:password_digest) }
 
-	describe "when password is not present" do
+		describe "when password is not present" do
 	  before do
 	    @user = User.new(name: "Example User", email: "user@example.com",
 	                     password: " ", password_confirmation: " ")

@@ -495,7 +495,229 @@ Modeling Users
 		$ git commit -m "Make a basic User model (including secure passwords)
 		"
 		$ git checkout master
-$ git merge modeling-users
+		$ git merge modeling-users
+		$ git push
+		$ git push heroku
+		$ heroku open
+		$ heroku logs
+Sign Up
+	$ git checkout master
+	$ git checkout -b sign-up
+	- Adding debug information
+		app/views/layouts/application.html.erb
+		<body>
+		    <%= render 'layouts/header' %>
+		    <div class="container">
+		      <%= yield %>
+		      <%= render 'layouts/footer' %>
+		      <%= debug(params) if Rails.env.development? %>
+		    </div>
+		</body>
+		AND  in custom.css.scss.  Just to show in a good shape
+
+		/*  To debug */
+		@mixin box_sizing {
+		  -moz-box-sizing: border-box;
+		  -webkit-box-sizing: border-box;
+		  box-sizing: border-box;
+		}
+
+		/* miscellaneous */
+		.debug_dump {
+		  clear: both;
+		  float: left;
+		  width: 100%;
+		  margin-top: 45px;
+		  @include box_sizing;
+		}
+	Include Resources
+		in config/routes.rb:
+			resources :users
+		- This adds the URL working /users/1 and all RESTs urls
+	Create HTML
+		app/views/users/show.html.erb
+		<%= @user.name %>, <%= @user.email %>
+	In controller, creates the method show to return the User.
+		class UsersController < ApplicationController
+
+  		def show
+    		@user = User.find(params[:id])
+  		end
+  		...
+  	In gemfile . This include the possibility of bootstrap MOCK.
+		  gem 'factory_girl_rails', '4.2.1'
+
+	- Then create a file spec/factories.rb
+	  	FactoryGirl.define do
+		  factory :user do
+		    name     "Andersno Lopes"
+		    email    "romalopes@yahoo.com.br"
+		    password "foobar"
+		    password_confirmation "foobar"
+		  end
+		end
+	And use in user_pages_spec.rb test:
+		let(:user) { FactoryGirl.create(:user) } 
+
+	  describe "profile page" do
+	    let(:user) { FactoryGirl.create(:user) }
+	    before { visit user_path(user) }
+
+	    it { should have_content(user.name) }
+	    it { should have_title(user.name) }
+	  end
+	To make test fast with password, goes to config/environment/test.rb and include
+		# Speed up tests by lowering bcrypt's cost function.
+  		ActiveModel::SecurePassword.min_cost = true
+
+  	Globally recognized avatar ( Gravatar) - http://en.gravatar.com/
+  		Free service to upload images and associate with email.
+  		In app/views/users/show.html.erb
+		<% provide(:title, @user.name) %>
+		<div class="row">
+		  <aside class="span4">
+		    <section>
+		      <h1>
+		        <%= gravatar_for @user %>
+		        <%= @user.name %>
+		      </h1>
+		    </section>
+		  </aside>
+		</div>
+	In app/helpers/users_helper.rb create the method to be used in show.html.erb.  Similar to taglib.
+		module UsersHelper
+
+		  # Returns the Gravatar (http://gravatar.com/) for the given user.
+		  def gravatar_for(user)
+		    gravatar_id = Digest::MD5::hexdigest(user.email.downcase)
+		    gravatar_url = "https://secure.gravatar.com/avatar/#{gravatar_id}"
+		    image_tag(gravatar_url, alt: user.name, class: "gravatar")
+		  end
+		end
+	To clean DataBase
+		$ bundle exec rake db:reset
+		$ bundle exec rake test:prepare
+	Tests to sign up page in rspec/requests/user_pages_sspec.rb
+		describe "signup" do
+
+		    before { visit signup_path }
+
+		    let(:submit) { "Create my account" }
+
+		    describe "with invalid information" do
+		      it "should not create a user" do
+		        expect { click_button submit }.not_to change(User, :count)
+		      end
+		    end
+
+		    describe "with valid information" do
+		      before do
+		        fill_in "Name",         with: "Example User"
+		        fill_in "Email",        with: "user@example.com"
+		        fill_in "Password",     with: "foobar"
+		        fill_in "Confirmation", with: "foobar"
+		      end
+
+		      it "should create a user" do
+		        expect { click_button submit }.to change(User, :count).by(1)
+		      end
+		    end
+		end
+		- The test will fail because it doesn't change anything yet.
+	Using the FORM ---->  Using form_for
+		Include the code with form_for in app/views/new.html.erb
+			<% provide(:title, 'Sign up') %>
+			<h1>Sign up</h1>
+
+			<div class="row">
+			  <div class="span6 offset3">
+			    <%= form_for(@user) do |f| %>
+
+			      <%= f.label :name %>
+			      <%= f.text_field :name %>
+
+			      <%= f.label :email %>
+			      <%= f.text_field :email %>
+
+			      <%= f.label :password %>
+			      <%= f.password_field :password %>
+
+			      <%= f.label :password_confirmation, "Confirmation" %>
+			      <%= f.password_field :password_confirmation %>
+
+			      <%= f.submit "Create my account", class: "btn btn-large btn-primary" %>
+			    <% end %>
+			  </div>
+			</div>
+		And app/controllers/users_controller.rb
+			class UsersController < ApplicationController
+			  ...
+			  def new   
+			    @user = User.new
+			  end
+
+			    def create
+				    @user = User.new(params[:user])    # Not the final implementation!
+				    #Equivalent to
+				    #@user = User.new(name: "Foo Bar", email: "foo@invalid", password: "foo", password_confirmation: "bar")
+				    #The final implementation
+				    @user = User.new(user_params)
+				    if @user.save
+				      # Handle a successful save.
+				      flash[:success] = "Welcome to the Sample App!"
+				      redirect_to @user
+				    else
+				      render 'new'
+				    end
+			    end
+			     private
+				    def user_params
+				      params.require(:user).permit(:name, :email, :password,
+				                                   :password_confirmation)
+				    end
+			end
+		- Now test passes.
+	Signup Error Messages
+		Object errors.full_messages, has the array of errors.
+		In views/users/new.html.erb include
+			<%= render 'shared/error_messages' %>		
+			Shared is related to partials expected to be used in views in multiple controllers.
+
+			Create app/views/shared/_error_messages.html.erb
+				<% if @user.errors.any? %>
+			  <div id="error_explanation">
+			    <div class="alert alert-error">
+			      The form contains <%= pluralize(@user.errors.count, "error") %>.
+			    </div>
+			    <ul>
+			    <% @user.errors.full_messages.each do |msg| %>
+			      <li>* <%= msg %></li>
+			    <% end %>
+			    </ul>
+			  </div>
+			<% end %>
+
+			- pluralize is a magic that make the word("error") plural if the first parameter is >0.
+			- error_explanation and alert alert-error define a good layout for errors.
+				They are specified in custom.css.scss
+	Finishing the form
+		Just include this code after "if @user.save"
+		redirect_to @user
+	Flash
+		Message that appears in the following page after a submit.
+		Variable flash that is used as a hash.
+		In app/views/layouts/application.html.erb include
+		<% flash.each do |key, value| %>
+        	<div class="alert alert-<%= key %>"><%= value %></div>
+      	<% end %>
+
+      	Ex: if flash[:success] = "Welcome to the Sample App!"
+      	the output is:
+      	<div class="alert alert-success">Welcome to the Sample App!</div>
+
+      	Here, key is "success", should exists class "alert-success".
+      	- And after @user.save in UserController class, include
+      		flash[:success] = "Welcome to the Sample App!"
 
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox
