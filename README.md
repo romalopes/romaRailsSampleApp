@@ -578,7 +578,7 @@ Sign Up
 		  <aside class="span4">
 		    <section>
 		      <h1>
-		        <%= gravatar_for @user %>
+		        <%= gravatar_for @user, {size:80} %>
 		        <%= @user.name %>
 		      </h1>
 		    </section>
@@ -588,8 +588,9 @@ Sign Up
 		module UsersHelper
 
 		  # Returns the Gravatar (http://gravatar.com/) for the given user.
-		  def gravatar_for(user)
+		  def gravatar_for(user, options = { size: 50 })
 		    gravatar_id = Digest::MD5::hexdigest(user.email.downcase)
+		    size = options[:size]
 		    gravatar_url = "https://secure.gravatar.com/avatar/#{gravatar_id}"
 		    image_tag(gravatar_url, alt: user.name, class: "gravatar")
 		  end
@@ -719,7 +720,29 @@ Sign Up
       	- And after @user.save in UserController class, include
       		flash[:success] = "Welcome to the Sample App!"
 
+    Commiting
+	    $ git add .
+		$ git commit -m "Finish user signup"
+		$ git checkout master
+		$ git merge sign-up
+	SSL
+		In config/environments/production.rb, include to SSL
+		  # Force all access to the app over SSL, use Strict-Transport-Security,
+		  # and use secure cookies.
+		  config.force_ssl = true
+
+		- Heroku provides a pratform to SSL.  To create a SSL for your domaing, many steps should be taking and you should by a SSL certificate.
+			- http://devcenter.heroku.com/articles/ssl
+    More Commiting and Heroku
+    	$ git commit -a -m "Add SSL in production"
+		$ git push heroku
+		- Migrate the DB to heroku
+			$ heroku run rake db:migrate
+		$ heroku open
+		
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox
+
+
 
 
