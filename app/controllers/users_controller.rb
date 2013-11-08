@@ -12,7 +12,6 @@ class UsersController < ApplicationController
 	    @user = User.new
   end
 
-
     def create
 	    #@user = User.new(params[:user])    # Not the final implementation!
 	    # is equivalent to 
@@ -25,6 +24,10 @@ class UsersController < ApplicationController
 	    else
 	      render 'new'
 	    end
+    end
+
+  def edit
+      @user = User.find(params[:id])
     end
 
     private

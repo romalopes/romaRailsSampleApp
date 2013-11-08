@@ -970,6 +970,34 @@ Sign in, sign out
 		$ git push
 		$ git push heroku
 		$ heroku run rake db:migrate
+Updating, showing, and deleting users
+	$ git checkout -b updating-users
+	Updating
+		While anyone can sign up, only the current user can update
+		Only authorized users edit and update
+	New tests in spec/requests/user_pages_spec.rb
+		  describe "edit" do
+		    let(:user) { FactoryGirl.create(:user) }
+		    before { visit edit_user_path(user) }
+
+		    describe "page" do
+		      it { should have_content("Update your profile") }
+		      it { should have_title("Edit user") }
+		      it { should have_link('change', href: 'http://gravatar.com/emails') }
+		    end
+
+		    describe "with invalid information" do
+		      before { click_button "Save changes" }
+
+		      it { should have_content('error') }
+		    end
+		  end
+	Add a method in users_controller.rb
+		def edit
+      		@user = User.find(params[:id])
+    	end
+    and create a file views/users/edit.html.erb
+   
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox
 
