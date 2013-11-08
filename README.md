@@ -996,8 +996,86 @@ Updating, showing, and deleting users
 		def edit
       		@user = User.find(params[:id])
     	end
-    and create a file views/users/edit.html.erb
-   
+    create a file views/users/edit.html.erb
+    change in _header.html.erb
+       <%= link_to "Settings", edit_user_path(current_user) %>
+    include method to update in users_controller.rb
+	  def update
+	    @user = User.find(params[:id])
+	    if @user.update_attributes(user_params)
+	      flash[:success] = "Profile updated"
+	      redirect_to @user
+	    else
+	      render 'edit'
+	    end
+	  end	
+	- Authorization	  
+		1o. Requiring signed-in users
+			create test in authentication_pages_spec.rb.
+			Use path to request directy to /users/1
+			If call edit_user_path, should go to sign in.
+			describe "authorization" do
+
+			    describe "for non-signed-in users" do
+			      let(:user) { FactoryGirl.create(:user) }
+
+			      describe "in the Users controller" do
+
+			        describe "visiting the edit page" do
+			          before { visit edit_user_path(user) }
+			          it { should have_title('Sign in') }
+			        end
+
+			        describe "submitting to the update action" do
+			          before { patch user_path(user) }
+			          specify { expect(response).to redirect_to(signin_path) }
+			        end
+			      end
+			    end
+			end
+
+		2o. In users_controller.rb
+			class UsersController < ApplicationController
+			  before_action :signed_in_user, only: [:edit, :update]
+
+			AND
+				# Before filters
+			    def signed_in_user
+			      redirect_to signin_url, notice: "Please sign in." unless signed_in?
+			    end
+	- Now Requiring the right user
+		1o. Include a test in authentication_pages_spec.rb
+		 	describe "as wrong user" do
+		      let(:user) { FactoryGirl.create(:user) }
+		      let(:wrong_user) { FactoryGirl.create(:user, email: "wrong@example.com") }
+		      before { sign_in user, no_capybara: true }
+
+		      describe "submitting a GET request to the Users#edit action" do
+		        before { get edit_user_path(wrong_user) }
+		        specify { expect(response.body).not_to match(full_title('Edit user')) }
+		        specify { expect(response).to redirect_to(root_url) }
+		      end
+
+		      describe "submitting a PATCH request to the Users#update action" do
+		        before { patch user_path(wrong_user) }
+		        specify { expect(response).to redirect_to(root_url) }
+		      end
+		    end
+		2o Include code in users_controllers.rb
+			  before_action :correct_user,   only: [:edit, :update]
+
+			  AND
+
+			   def correct_user
+			      @user = User.find(params[:id])
+			      redirect_to(root_url) unless current_user?(@user)
+  		       end
+  		       - current_user is defined in sessions_helper.rb
+					  def current_user?(user)
+					    user == current_user
+					  end
+
+
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox
 
