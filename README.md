@@ -1303,6 +1303,17 @@ Updating, showing, and deleting users
 			def admin_user
       			redirect_to(root_url) unless current_user.admin?
     		end
+    Git
+	    $ git add .
+		$ git commit -m "Finish user edit, update, index, and destroy actions"
+		$ git checkout master
+		$ git merge updating-users
+		$ git push heroku
+		$ heroku pg:reset DATABASE
+		$ heroku run rake db:migrate
+		$ heroku run rake db:populate
+		$ heroku restart
+		$ heroku open
 
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox
