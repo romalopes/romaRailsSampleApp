@@ -1315,6 +1315,9 @@ Updating, showing, and deleting users
 		$ heroku restart
 		$ heroku open
 
+The Microposts
+	
+
 http://railsapps.github.io/installing-rails.html
 http://www.psychocats.net/ubuntu/virtualbox
 
