@@ -11,9 +11,12 @@
   <body>
     <%= render 'layouts/header' %>    <!-- Call a header in different file.-->
     <div class="container">       
+<!--  <% if false %>
       <% flash.each do |key, value| %>
         <div class="alert alert-<%= key %>"><%= value %></div>
       <% end %>
+      <%end%>
+       -->
       <% flash.each do |key, value| %>
         <%= content_tag(:div, value, class: "alert alert-#{key}") %>
       <% end %>      
@@ -23,8 +26,6 @@
     </div>
   </body>
 </html>
-
-
 
 
 

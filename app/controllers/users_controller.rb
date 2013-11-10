@@ -16,7 +16,7 @@ class UsersController < ApplicationController
    #                   password: "foobar", password_confirmation: "foobar")
   	# user.save
     @user = User.find(params[:id])
-    puts @user
+    @microposts = @user.microposts.paginate(page: params[:page])
   end
 
   def new
@@ -65,19 +65,20 @@ class UsersController < ApplicationController
     end
 
      # Before filters
-    def signed_in_user
-      #redirect_to signin_url, notice: "Please sign in." unless signed_in?
-      unless signed_in?
-        store_location
-        redirect_to signin_url, notice: "Please sign in."
-      end
+     #Moved to sessions_helper.rb
+    # def signed_in_user
+    #   #redirect_to signin_url, notice: "Please sign in." unless signed_in?
+    #   unless signed_in?
+    #     store_location
+    #     redirect_to signin_url, notice: "Please sign in."
+    #   end
 
       #Equivalent to 
       # unless signed_in?
       #   flash[:notice] = "Please sign in."
       #   redirect_to signin_url
       # end
-    end
+   # end
 
      def correct_user
       @user = User.find(params[:id])

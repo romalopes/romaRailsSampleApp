@@ -8,4 +8,14 @@
       </h3>
     </section>
   </aside>
+  <div class="span8">
+    <% if @user.microposts.any? %>
+	    <h3>Microposts (<%= @user.microposts.count %>)</h3>
+
+	    <ol class="microposts">
+	       <%= render @microposts %> <!--@microposts is defined in UsersController render _micropost.html.erb--> 
+	    </ol>
+	    <%= will_paginate @microposts %> <!-- if don't pass @microposts, it will assume that is @users -->
+    <% end %>
+   </div>
 </div>

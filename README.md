@@ -4,10 +4,11 @@ Sample application using Rails
 # Ruby on Rails Tutorial: sample application
 
 This is the sample application for
-the [*Ruby on Rails Tutorial*](http://railstutorial.org/)
-by [Michael Hartl](http://michaelhartl.com/).
+the [*Ruby on Rails Tutorial*](http://railstutorial.org/) based on [Michael Hartl](http://michaelhartl.com/).
+
 
 ########A new application
+		http://railsapps.github.io/installing-rails.html
 		http://ruby.railstutorial.org
 		- Create a project without tests
 		$ rails new romaRailsSampleApp --skip-test-unit
@@ -1316,11 +1317,359 @@ Updating, showing, and deleting users
 		$ heroku open
 
 The Microposts
-	
+	$ git checkout -b user-microposts
+	- Generate first Model (Micropost)
+		$ rails generate model Micropost content:string user_id:integer
+			content, user_id
+		- invoke  active_record
+	      create    db/migrate/20131110041424_create_microposts.rb
+	      create    app/models/micropost.rb
+	      invoke    rspec
+	      create      spec/models/micropost_spec.rb
+	      invoke      factory_girl
+	      create        spec/factories/microposts.rb
 
-http://railsapps.github.io/installing-rails.html
-http://www.psychocats.net/ubuntu/virtualbox
+		Remove this file
+			$ rm -f spec/factories/microposts.rb
+	- change db/migrate/[timestamp]_create_microposts.rb to include the index
+		class CreateMicroposts < ActiveRecord::Migration
+		  def change
+		    create_table :microposts do |t|
+		      t.string :content
+		      t.integer :user_id
 
+		      t.timestamps
+		    end
+		    add_index :microposts, [:user_id, :created_at]
+		  end
+		end
+	- Include the first test in	spec/models/micropost_spec.rb
+		require 'spec_helper'
 
+		describe Micropost do
 
+		  let(:user) { FactoryGirl.create(:user) }
+		  before do
+		    # This code is not idiomatically correct.
+		    @micropost = Micropost.new(content: "Lorem ipsum", user_id: user.id)
+		  end
 
+		  subject { @micropost }
+
+		  it { should respond_to(:content) }
+		  it { should respond_to(:user_id) }
+
+		  it { should be_valid }
+
+		  describe "when user_id is not present" do
+		    before { @micropost.user_id = nil }
+		    it { should_not be_valid }
+		  end
+		end
+	- Change DB
+		$ bundle exec rake db:migrate
+		$ bundle exec rake test:prepare	
+	- Include validation about user_id in app/models/micropost.rb
+		class Micropost < ActiveRecord::Base
+		  validates :user_id, presence: true
+		end
+	- But is is needed the association
+		Create a test in micropost_spec.rb to fail first
+		  describe "when user_id is not present" do
+		    before { @micropost.user_id = nil }
+		    it { should_not be_valid }
+		  end
+		And in users_spec.rb
+			 it { should respond_to(:microposts) }
+		In app/models/micropost.rb, include belongs_to
+			class Micropost < ActiveRecord::Base
+			  belongs_to :user
+			  validates :user_id, presence: true
+			end
+		In app/models/user.rb, include the has_many
+			has_many :microposts
+	- In spec/factories.rb
+		include the criation of micropost
+			factory :micropost do
+		    	content "Lorem ipsum"
+		    	user
+		  	end
+	- Test in spec/models/user_spec.rb to guarantee that microposts will appear in reverse order
+		describe "micropost associations" do
+
+		    before { @user.save }
+		    let!(:older_micropost) do
+		      FactoryGirl.create(:micropost, user: @user, created_at: 1.day.ago)
+		    end
+		    let!(:newer_micropost) do
+		      FactoryGirl.create(:micropost, user: @user, created_at: 1.hour.ago)
+		    end
+
+		    it "should have the right microposts in the right order" do
+		      expect(@user.microposts.to_a).to eq [newer_micropost, older_micropost]
+		    end  # this line is because the posts should have inverse order
+		end #to_a method, transforms from @user.microposts to an array.
+	- In app/model/micropost.rb, include this feature
+		class Micropost < ActiveRecord::Base
+		  belongs_to :user
+		  default_scope -> { order('created_at DESC') }
+		  validates :user_id, presence: true
+		end
+	- If user is destroyied, micropost should also.
+		- Test in spec/models/user_spec.rb
+		 	it "should destroy associated microposts" do
+		      microposts = @user.microposts.to_a
+		      @user.destroy
+		      expect(microposts).not_to be_empty
+		      microposts.each do |micropost|
+		        expect(Micropost.where(id: micropost.id)).to be_empty
+		      end
+		    end
+		- in user.rb
+			has_many :microposts, dependent: :destroy
+	- Validation for micropost to guarantee that has user_id, content <= 140
+		in spec/models/micropost_spec.rb
+			 describe "when user_id is not present" do
+			    before { @micropost.user_id = nil }
+			    it { should_not be_valid }
+			  end
+
+			  describe "with blank content" do
+			    before { @micropost.content = " " }
+			    it { should_not be_valid }
+			  end
+
+			  describe "with content that is too long" do
+			    before { @micropost.content = "a" * 141 }
+			    it { should_not be_valid }
+			end
+		- include the validation in micropost.rb
+			validates :user_id, presence: true
+			validates :content, presence: true, length: { maximum: 140 }
+	Show posts
+		Create tests to show posts int	spec/requests/user_pages_spec.rb		
+			describe "profile page" do
+			    let(:user) { FactoryGirl.create(:user) }
+			    let!(:m1) { FactoryGirl.create(:micropost, user: user, content: "Foo") }
+			    let!(:m2) { FactoryGirl.create(:micropost, user: user, content: "Bar") }
+
+			    before { visit user_path(user) }
+
+			    it { should have_content(user.name) }
+			    it { should have_title(user.name) }
+
+			    describe "microposts" do
+			      it { should have_content(m1.content) }
+			      it { should have_content(m2.content) }
+			      it { should have_content(user.microposts.count) }
+			    end
+			end	
+		Include in app/views/users/show.html.erb
+			<div class="span8">
+			    <% if @user.microposts.any? %>
+				    <h3>Microposts (<%= @user.microposts.count %>)</h3>
+				    <ol class="microposts">
+				       <%= render @microposts %> <!--@microposts is defined in UsersController render _micropost.html.erb--> 
+				    </ol>
+				    <%= will_paginate @microposts %> <!-- if don't pass @microposts, it will assume that is @users -->
+			    <% end %>
+			</div>
+		Include @micropost in show of UsersController with pagination
+			def show
+			    @user = User.find(params[:id])
+			    @microposts = @user.microposts.paginate(page: params[:page])
+			end
+	Create some sample posts
+		In lib/tasks/sample_data.rake, include 50 posts to 6 users
+			users = User.all(limit: 6)
+		    50.times do
+		      content = Faker::Lorem.sentence(5)
+		      users.each { |user| user.microposts.create!(content: content) }
+		    end
+	As I changes the sample creation, we need to change the DB
+		$ bundle exec rake db:reset
+		$ bundle exec rake db:populate
+		$ bundle exec rake test:prepare
+
+	Maniputaling micropost
+		in config/routes.rb, include resources for micropost
+		resources :microposts, only: [:create, :destroy]
+		Only create and destroy because we don't need new nor edit.
+
+		Tests to be sure that create and destroy are made with signed in user in authorization_pages_spec.html.erb
+	      	describe "in the Microposts controller" do
+
+		        describe "submitting to the create action" do
+		          before { post microposts_path }
+		          specify { expect(response).to redirect_to(signin_path) }
+		        end
+
+		        describe "submitting to the destroy action" do
+		          before { delete micropost_path(FactoryGirl.create(:micropost)) }
+		          specify { expect(response).to redirect_to(signin_path) }
+		        end
+		    end
+		Move the signed_in_user from UsersController to SessionsHelper
+		  def signed_in_user
+		    unless signed_in?
+		      store_location
+		      redirect_to signin_url, notice: "Please sign in."
+		    end
+		  end
+		Create methods in MicropostsController.  Also define the before_action for signed_in_user for create and destroy.
+		class MicropostsController < ApplicationController
+		  before_action :signed_in_user, only: [:create, :destroy]
+
+		  def index
+		  end
+
+		  def create
+		  end
+
+		  def destroy
+		  end
+		end
+	Creating microposts
+		Generate files for test and pages(html.erb)
+		$ rails generate integration_test micropost_pages
+		- Create test in spec/requests/micropost_pages_spec.rb
+		- in app/controllers/microposts_controller.rb, create a post
+			def create
+			    @micropost = current_user.microposts.build(micropost_params)
+			    if @micropost.save
+			      flash[:success] = "Micropost created!"
+			      redirect_to root_url
+			    else
+			      @feed_items = []
+			      render 'static_pages/home'
+			    end
+			end
+
+			private
+			    def micropost_params
+			      params.require(:micropost).permit(:content)
+			    end
+		- in app/views/static_pages/home.html.erb include the post creation and user information in case of logged in.
+			<% if signed_in? %>
+			  <div class="row">
+			    <aside class="span4">
+			      <section>
+			        <%= render 'shared/user_info' %>
+			      </section>
+			      <section>
+			        <%= render 'shared/micropost_form' %>
+			      </section>
+			    </aside>
+			  </div>
+			<% else %>
+		- Separet _user_info.html.erb and _micropost_form.html.erb
+			- app/views/shared/_micropost_form.html.erb
+				<%= form_for(@micropost) do |f| %>
+				  <%= render 'shared/error_messages', object: f.object %>
+				  <div class="field">
+				    <%= f.text_area :content, placeholder: "Compose new micropost..." %>
+				  </div>
+				  <%= f.submit "Post", class: "btn btn-large btn-primary" %>
+				<% end %>
+		- But, should set @micropost in home.
+			class StaticPagesController < ApplicationController
+
+			  def home
+			    @micropost = current_user.microposts.build if signed_in?
+			  end
+		- In _error_messages.html.erb, generalize the object, previously it was only to user.  Se in _micropost_form.html.erb(object: f.object)
+			<% if object.errors.any? %>
+			  <div id="error_explanation">
+			    <div class="alert alert-error">
+			      The form contains <%= pluralize(object.errors.count, "error") %>.
+			    </div>
+			    <ul>
+			    	<% object.errors.full_messages.each do |msg| %>
+			      <li>* <%= msg %></li>
+			    <% end %>
+			    </ul>
+			  </div>
+			<% end %>
+	Getting Feed
+		To get feed include app/models/user.rb
+			def feed
+			    # This is preliminary. See "Following users" for the full implementation.
+			    Micropost.where("user_id = ?", id)
+			end
+		- Write test in spec/requests/static_pages_spec.rb
+			describe "for signed-in users" do
+		      let(:user) { FactoryGirl.create(:user) }
+		      before do
+		        FactoryGirl.create(:micropost, user: user, content: "Lorem ipsum")
+		        FactoryGirl.create(:micropost, user: user, content: "Dolor sit amet")
+		        sign_in user
+		        visit root_path
+		      end
+
+		      it "should render the user's feed" do
+		        user.feed.each do |item|
+		          expect(page).to have_selector("li##{item.id}", text: item.content)
+		        end
+		      end
+		    end
+		- In StaticPagesController
+			def home
+			    if signed_in?
+			      @micropost  = current_user.microposts.build
+			      @feed_items = current_user.feed.paginate(page: params[:page])
+			    end
+			end
+		- In app/views/shared/_feed.html.erb
+			<% if @feed_items.any? %>
+			  <ol class="microposts">
+			    <%= render partial: 'shared/feed_item', collection: @feed_items %>
+			  </ol>
+			  <%= will_paginate @feed_items %>
+			<% end %>
+		- Include in home.html.erb
+			<div class="span8">
+		      <h3>Micropost Feed</h3>
+		      <%= render 'shared/feed' %>
+		    </div>
+	- To delete a micropost
+		In _micropost.html.erb and _feed_item.html.erb, include the link to delete
+			<% if current_user?(micropost.user) %>
+	    		<%= link_to "delete", micropost, method: :delete,
+	                                     data: { confirm: "You sure?" },
+	                                     title: micropost.content %>
+	  		<% end %>
+	  	Include test in micropost_pages_spec.rb
+	  		describe "micropost destruction" do
+		    	before { FactoryGirl.create(:micropost, user: user) }
+
+			    describe "as correct user" do
+			      before { visit root_path }
+
+			      it "should delete a micropost" do
+			        expect { click_link "delete" }.to change(Micropost, :count).by(-1)
+			    end
+		    end
+		  end
+		- In app/controllers/microposts_controller.rb, restrict for only the correct user destroy the post
+			before_action :correct_user,   only: :destroy
+
+			def destroy
+			    @micropost.destroy
+			    redirect_to root_url
+			end
+
+  			# current_user is in sessions_helper.rb
+			def correct_user
+		      @micropost = current_user.microposts.find_by(id: params[:id])
+		      redirect_to root_url if @micropost.nil?
+		    end
+	Git
+		$ git add .
+		$ git commit -m "Add user microposts"
+		$ git checkout master
+		$ git merge user-microposts
+		$ git push
+		$ git push heroku
+		$ heroku pg:reset DATABASE
+		$ heroku run rake db:migrate
+		$ heroku run rake db:populate

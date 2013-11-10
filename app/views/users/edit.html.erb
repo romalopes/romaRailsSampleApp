@@ -8,6 +8,9 @@
   <form action="/users/1" class="edit_user" id="edit_user_1" method="post">
   <input name="_method" type="hidden" value="patch" />-->
 
+      <%= render 'fields', f: f %>
+<!-- 
+<% if false %>      
       <%= render 'shared/error_messages' %>
 
       <%= f.label :name %>
@@ -21,7 +24,8 @@
 
       <%= f.label :password_confirmation, "Confirm Password" %>
       <%= f.password_field :password_confirmation %>
-
+<% end %>
+ -->
       <%= f.submit "Save changes", class: "btn btn-large btn-primary" %>
     <% end %>
 
