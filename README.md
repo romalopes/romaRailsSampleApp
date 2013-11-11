@@ -1673,3 +1673,364 @@ The Microposts
 		$ heroku pg:reset DATABASE
 		$ heroku run rake db:migrate
 		$ heroku run rake db:populate
+
+Users following Users
+	What to do
+		Use Many-to-Many relationship.
+			ex: has_many :followed_users, through: :relationships, source: :followed
+		Table User 		Table relationships
+		 id 				follower_id
+		 name 				following_id
+		 ...
+
+		Calling: user.followed_users
+				 user.following_users
+	1. Generate Relationship model
+		$ rails generate model Relationship follower_id:integer followed_id:integer
+		- Create a model of relationship, db and test
+			create    db/migrate/20131110153227_create_relationships.rb
+	    	create    app/models/relationship.rb
+      		invoke    rspec
+      		create      spec/models/relationship_spec.rb
+      		invoke      factory_girl
+      		create        spec/factories/relationships.rb
+      	- Remove $ rm -f spec/factories/relationship.rb because we don't need.
+    2. In DB migration. db/migrate/[timestamp]_create_relationships.rb
+    	- We have the table creation
+    	- Include the indexes manually.
+
+		class CreateRelationships < ActiveRecord::Migration
+		  def change
+		    create_table :relationships do |t|
+		      t.integer :follower_id
+		      t.integer :followed_id
+
+		      t.timestamps
+		    end
+		    add_index :relationships, :follower_id
+		    add_index :relationships, :followed_id
+		    #User can't follow another user more than one.
+		    add_index :relationships, [:follower_id, :followed_id], unique: true
+		  end
+	3. Migrate and test
+		$ bundle exec rake db:migrate
+		$ bundle exec rake test:prepare
+	4. User/relationship associations and Validation
+		Up to now we just created the table.
+		Now we need to stablish the association between users and relationship
+		4.1 Creating test In spec/models/relationship_spec.rb
+			
+			require 'spec_helper'
+			describe Relationship do
+
+			  let(:follower) { FactoryGirl.create(:user) }
+			  let(:followed) { FactoryGirl.create(:user) }
+			  let(:relationship) { follower.relationships.build(followed_id: followed.id) }
+
+			  subject { relationship }
+
+			  it { should be_valid }
+			  .
+			  .
+			  .
+			  describe "follower methods" do
+			    it { should respond_to(:follower) }
+			    it { should respond_to(:followed) }
+			    its(:follower) { should eq follower }
+			    its(:followed) { should eq followed }
+			  end
+			  #Validating the relationship in 
+			  describe "when followed id is not present" do
+			    before { relationship.followed_id = nil }
+			    it { should_not be_valid }
+			  end
+			  describe "when follower id is not present" do
+			    before { relationship.follower_id = nil }
+			    it { should_not be_valid }
+			  end
+			end
+		4.2 Create test for user.relationships attribute in spec/models/user_spec.rb
+			describe User do
+			  .
+			  .
+			  .
+			  it { should respond_to(:feed) }
+			  it { should respond_to(:relationships) }
+		4.3 Include the has_many association in app/models/user.rb
+			class User < ActiveRecord::Base
+			  has_many :microposts, dependent: :destroy
+			  #if destroy user, relationship will be destroied
+			  has_many :relationships, foreign_key: "follower_id", dependent: :destroy
+			  .
+			  .
+			  .
+			end
+		4.4 Create the belongs_to in app/models/relationship.rb
+			class Relationship < ActiveRecord::Base
+			  belongs_to :follower, class_name: "User"
+			  belongs_to :followed, class_name: "User"
+			  validates :follower_id, presence: true
+  			  validates :followed_id, presence: true
+			end
+	5. Followed users
+		A test for the user.followed_users attribute. 
+spec/models/user_spec.rb
+		require 'spec_helper'
+		describe User do
+		  .
+		  .
+		  .
+		  it { should respond_to(:relationships) }
+		  it { should respond_to(:followed_users) }
+		  it { should respond_to(:following?) }
+		  it { should respond_to(:follow!) }		  
+		  .
+		  .
+		  .
+		  describe "following" do
+    		let(:other_user) { FactoryGirl.create(:user) }
+    		before do
+      			@user.save
+      			@user.follow!(other_user)
+    		end
+		    it { should be_following(other_user) }
+    		its(:followed_users) { should include(other_user) }
+  		  end		  
+  		  describe "and unfollowing" do
+		      before { @user.unfollow!(other_user) }
+
+		      it { should_not be_following(other_user) }
+		      its(:followed_users) { should_not include(other_user) }
+		  end
+		end
+
+		- Create the followed_users association in app/models/user.rb
+		- has_many through another table(relationships) in the attribute(followed).
+		- Create method to test if a user follows and create the follow
+		class User < ActiveRecord::Base
+			...
+  			has_many :followed_users, through: :relationships, source: :followed
+ 			
+ 			  def following?(other_user)
+			    relationships.find_by(followed_id: other_user.id)
+			  end
+
+			  def follow!(other_user)
+			    relationships.create!(followed_id: other_user.id)
+			  end
+			  def unfollow!(other_user)
+    			relationships.find_by(followed_id: other_user.id).destroy!
+  			  end
+  	Followers - using reverse relationships.
+  		Test reverse relationships. in spec/models/user_spec.rb
+		describe User do
+		  .
+		  .
+		  .
+		  it { should respond_to(:relationships) }
+		  it { should respond_to(:followed_users) }
+		  it { should respond_to(:reverse_relationships) }
+		  it { should respond_to(:followers) }
+
+		  and inside the describe "following" do
+			  describe "followed user" do
+			      subject { other_user }
+			      its(:followers) { should include(@user) }
+		      end
+		Implementing user.followers using reverse relationships. 
+			app/models/user.rb
+			class User < ActiveRecord::Base
+			  .
+			  .
+			  .
+			  has_many :reverse_relationships, foreign_key: "followed_id",
+			                                   class_name:  "Relationship",
+			                                   dependent:   :destroy
+			  has_many :followers, through: :reverse_relationships, source: :follower
+	Web Interface
+		1. Create fake followers in lib/tasks/sample_data.rake
+			def make_relationships
+			  users = User.all
+			  user  = users.first
+			  followed_users = users[2..50]
+			  followers      = users[3..40]
+			  followed_users.each { |followed| user.follow!(followed) }
+			  followers.each      { |follower| follower.follow!(user) }
+			end
+
+			$ bundle exec rake db:reset
+			$ bundle exec rake db:populate
+			$ bundle exec rake test:prepare
+		2. In config/routes.rb, replace resource: users, by
+		  resources :users do
+		    member do 	#URL will look like /users/1/following
+		      get :following, :followers
+		    end
+		  end
+		  - It uses a method "member"
+			  HTTP request	URL				Action			Named route
+			 	GET		/users/1/following	following	following_user_path(1)
+				GET		/users/1/followers	followers	followers_user_path(1)
+
+		  - Other possibility
+		  	resources :users do
+			  collection do
+			    get :tigers
+			  end
+			end
+			- Would be called by: /users/tigers
+			- More about routes http://guides.rubyonrails.org/routing.html
+		3. In static_pages_spec.rb include test
+		   describe "follower/following counts" do
+	        let(:other_user) { FactoryGirl.create(:user) }
+	        before do
+	          other_user.follow!(user)
+	          visit root_path
+	        end
+
+	        it { should have_link("0 following", href: following_user_path(user)) }
+	        it { should have_link("1 followers", href: followers_user_path(user)) }
+	      end
+	    4. Include partial to show following and followers links in
+	    	app/views/shared/_stats.html.erb
+	    5. Include this partial in app/views/static_pages/home.html.erb
+	    	<section>
+		        <%= render 'shared/stats' %>
+		      </section>
+		6. Include partial to follow/unfollow from in app/views/users/_follow_form.html.erb
+			6.1 In routes include theses routes
+				  resources :relationships, only: [:create, :destroy]
+			6.2 Create the forms to follow and unfollow
+				app/views/users/_follow.html.erb
+				app/views/users/_unfollow.html.erb
+		7. Add follow from and follower stats to show.html.erb
+			<section>
+		      <%= render 'shared/stats' %>
+		    </section>
+		  </aside>
+		  <div class="span8">
+		    <%= render 'follow_form' if signed_in? %>
+	Following and followers pages
+		1. Define tests in spec/requests/user_pages_spec.rb
+		2. Define methods and "before_action" in users_controller
+			class UsersController < ApplicationController
+  			  before_action :signed_in_user,
+                	only: [:index, :edit, :update, :destroy, :following, :followers]		
+			  def following
+			    @title = "Following"
+			    @user = User.find(params[:id])
+			    @users = @user.followed_users.paginate(page: params[:page])
+			    render 'show_follow'
+			  end
+
+			  def followers
+			    @title = "Followers"
+			    @user = User.find(params[:id])
+			    @users = @user.followers.paginate(page: params[:page])
+			    render 'show_follow'
+			  end
+
+		3. Create the app/views/users/show_follow.html.erb
+			Render the following and followers.
+	Button Follow 
+		Standard
+			app/controllers/relationships_controller.rb
+				 def create
+				    @user = User.find(params[:relationship][:followed_id])
+				    current_user.follow!(@user)
+				    redirect_to @user
+				 end
+
+				 def destroy
+				    @user = Relationship.find(params[:id]).followed
+				    current_user.unfollow!(@user)
+				    redirect_to @user
+				 end
+		With AJAX
+			Just change 
+				form_for
+			to
+				form_for ..., remote: true
+			- It autamatically in html
+			- In Controller
+				Create a test in 		   spec/controllers/relationships_controller_spec.rb
+
+					xhr :post, :create, relationship: { followed_id: other_user.id }
+
+				#Return to format html and js
+				def create
+				    @user = User.find(params[:relationship][:followed_id])
+				    current_user.follow!(@user)
+				    respond_to do |format|
+				      format.html { redirect_to @user }
+				      format.js
+				    end
+				  end
+
+				  def destroy
+				    @user = Relationship.find(params[:id]).followed
+				    current_user.unfollow!(@user)
+				    respond_to do |format|
+				      format.html { redirect_to @user }
+				      format.js
+				    end
+				  end
+			- Rails automatically calls a "javascript embedded Ruby"(.js.erb)  create.js.erb or destroy.js.erb. 			
+			- AJAX from Rails uses Jquery JavaScript helpers.
+			- Create app/views/relationships/create.js.erb
+				$("#follow_form").html("<%= escape_javascript(render('users/unfollow')) %>")
+				$("#followers").html('<%= @user.followers.count %>')
+			- And app/views/relationships/destroy.js.erb
+				$("#follow_form").html("<%= escape_javascript(render('users/follow')) %>")
+				$("#followers").html('<%= @user.followers.count %>')
+			- #follow_form and #followers are div id in _follow_form.html.erb and app/views/shared/_stats.html.erb respectevely.
+	Feeds		
+		A new DB table that with the feeds of microposts received by a user
+		- In user_spec.rb include the test to feed
+
+			  let(:followed_user) { FactoryGirl.create(:user) }
+			  before do # to test Micropost.from_users_followed_by(user)
+		        @user.follow!(followed_user)
+		        3.times { followed_user.microposts.create!(content: "Lorem ipsum") }
+		      end
+
+		      its(:feed) { should include(newer_micropost) }
+		      its(:feed) { should include(older_micropost) }
+		      its(:feed) { should_not include(unfollowed_post) }
+		      its(:feed) do # to test Micropost.from_users_followed_by(user)
+		        followed_user.microposts.each do |micropost|
+		          should include(micropost)
+		      end
+		- In user.rb include the method feed
+			  #return the microposts from users followed by "self"
+			  def feed
+			    Micropost.from_users_followed_by(self)
+			  end
+		- In micropost.rb, create the method from_users_followed_by
+		  #return the microposts from users followed by "self"
+		  def self.from_users_followed_by(user)
+		  	#return all the followed users
+		    followed_user_ids = user.followed_user_ids
+		    #return the microposts from the user or followed users
+		    where("user_id IN (?) OR user_id = ?", followed_user_ids, user)
+		  end
+		- The code for homepage is in static_pages_controller.rb
+			def home
+			    if signed_in?
+			      @micropost  = current_user.microposts.build
+			      @feed_items = current_user.feed.paginate(page: params[:page])
+			    end
+			end
+
+	$ git add .
+	$ git commit -m "Add user following"
+	$ git checkout master
+	$ git merge following-users
+
+	$ git push
+	$ git push heroku
+	$ heroku pg:reset DATABASE
+	$ heroku run rake db:migrate
+	$ heroku run rake db:populate
+
+
