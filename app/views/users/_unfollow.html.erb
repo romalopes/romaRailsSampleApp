@@ -1,0 +1,15 @@
+<!-- finds the existing relationship. -->
+
+<% if false %>
+	<%= form_for(current_user.relationships.find_by(followed_id: @user),
+		method: :post, controller: 'relationships', action: 'destroyStandard') 	          do |f| %>
+	  <%= f.submit "Unfollow Standard", class: "btn btn-large" %>
+	<% end %>
+<% end %>
+
+
+<%= form_for(current_user.relationships.find_by(followed_id: @user),
+             html: { method: :delete },
+             remote: true) do |f| %>
+  <%= f.submit "Unfollow AJAX", class: "btn btn-large" %>
+<% end %>
