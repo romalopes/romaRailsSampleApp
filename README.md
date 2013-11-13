@@ -2055,7 +2055,7 @@ What that does is tell heroku to serve the images/js/css that are in your assets
 
 2. If that doesn't work, then do this:
 1. Remove @import bootstrap; from the custom.css.scss file
-2. Download a bootstrap.css file from getbootstrap.com and save it in your app/assets/css folder as bootstrap.css.scss
+2. Download a bootstrap.css file from getbootstrap.com and save it in your app/assets/stylesheets folder as bootstrap.css.scss
 (2a) I think you also can get rid of the gem 'bootstrap-sass'
 , '2.3.2.0' # add bootstrap
 3. git add ., git commit, git push etc
