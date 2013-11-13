@@ -2034,3 +2034,30 @@ spec/models/user_spec.rb
 	$ heroku run rake db:populate
 
 
+To make heroku work with Bootstrap
+Its not serving your assets.
+
+Three steps:
+
+1. In your config/enviroments/production.rb file change this:
+
+# Disable Rails's static asset server (Apache or nginx will already do this).
+  config.serve_static_assets = false
+
+to
+
+# Disable Rails's static asset server (Apache or nginx will already do this).
+  config.serve_static_assets = true
+
+then do the whole git add ., git commit, git push heroku master.
+
+What that does is tell heroku to serve the images/js/css that are in your assets pipeline.
+
+2. If that doesn't work, then do this:
+1. Remove @import bootstrap; from the custom.css.scss file
+2. Download a bootstrap.css file from getbootstrap.com and save it in your app/assets/css folder as bootstrap.css.scss
+(2a) I think you also can get rid of the gem 'bootstrap-sass'
+, '2.3.2.0' # add bootstrap
+3. git add ., git commit, git push etc
+
+3. Those should work. As a last resort, when I'm having probs I precomile my assets before heroku sees them. To do this type 'rake assets:precompile' in the CL then git add ., got commit, git push heroku master.
