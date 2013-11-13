@@ -1,9 +1,11 @@
 
+<% if false%>
 	<%= form_for(current_user.relationships.build(followed_id: @user.id),
 		method: :post, controller: 'relationships', action: 'createStandard') do |f| %>
 	  <div><%= f.hidden_field :followed_id %></div>
 	  <%= f.submit "Follow Standard", class: "btn btn-large btn-primary" %>
 	<% end %>
+<% end %>
 
 <!-- 
 	builds a new relationship
