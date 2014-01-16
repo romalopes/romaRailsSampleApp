@@ -32,7 +32,7 @@ the [*Ruby on Rails Tutorial*](http://railstutorial.org/) based on [Michael Hart
 		- Create home and help, without tests infra-structure(RSpec)
 			Create many files(static_pages_controller, home.htlm.erb, static_pages_helper.rb, static_pages.js.coffee, static_pages.css.scss)
 			Add home and help to routes.rb
-	- If I want to remove a Controoler or Model
+	- If I want to remove a Controller or Model
 		$ rails generate controller FooBars baz quux
   		$ rails destroy  controller FooBars baz quux
   		
@@ -67,7 +67,7 @@ the [*Ruby on Rails Tutorial*](http://railstutorial.org/) based on [Michael Hart
 			  subject { page }   # use the "expect(page).to "
 
 			  describe "Home page" do
-			    before { visit root_path }  # avoit the visit in each call
+			    before { visit root_path }  # it avoids the visit in each call
 
 			    it { should have_content('Sample App') }
 			    it { should have_title("Ruby on Rails Tutorial Sample App") }
@@ -181,6 +181,7 @@ the [*Ruby on Rails Tutorial*](http://railstutorial.org/) based on [Michael Hart
 		- Add the method in static_pages_controller
 			 def about
   			end
+  			
   	- layout 
   		app/views/layouts/application.html.erb it used but all pages.
 
